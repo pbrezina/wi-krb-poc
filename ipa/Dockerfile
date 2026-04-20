@@ -5,14 +5,15 @@ FROM quay.io/freeipa/freeipa-server:fedora-rawhide
 
 RUN cp -a /data-template/. /data/ && \
     mkdir -p /tmp/var/tmp && \
-    dnf copr enable -y abbra/s4u-test && \
-    dnf install -y openssh-server sssd-kcm oddjob oddjob-mkhomedir && \
-    dnf upgrade -y freeipa-server && \
+    dnf copr enable -y pbrezina/s4u && \
+    dnf upgrade -y 389-ds\* freeipa-server sssd\* && \
     dnf clean all && \
-    authselect enable-feature with-gssapi && \
-    authselect enable-feature with-mkhomedir && \
-    systemctl enable sshd sssd-kcm.socket oddjobd && \
     cp -a /data/. /data-template/
 
-# Copy sssd.conf with correct ownership and permissions
-COPY --chown=root:sssd --chmod=640 sssd.conf /data-template/etc/sssd/sssd.conf
+# Override UID_MAX and GID_MAX to allow IPA to use short ID ranges to fit into
+# SUBUID ranges. Must be smaller then --idstart.
+RUN sed -i -e 's/^UID_MIN.*/UID_MIN 1000/' \
+           -e 's/^UID_MAX.*/UID_MAX 2000/' \
+           -e 's/^GID_MIN.*/GID_MIN 1000/' \
+           -e 's/^GID_MAX.*/GID_MAX 2000/' \
+           /etc/login.defs

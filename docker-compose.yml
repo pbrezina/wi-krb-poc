@@ -47,27 +47,40 @@ services:
       - ipa-data:/data
       - ./certs:/certs
       - ./ipa/ipa-server-install-options:/data/ipa-server-install-options
-      - ./ipa/99-ssh-gssapi.conf:/etc/ssh/sshd_config.d/99-ssh-gssapi.conf
     cap_add:
-      - SETGID
-      - SETUID
-      - SETPCAP
       - DAC_READ_SEARCH
-      - DAC_OVERRIDE
-    security_opt:
-    - apparmor=unconfined
-    - label=disable
-    - seccomp=unconfined
     healthcheck:
       test: ["CMD", "ipactl", "status"]
       interval: 10s
       timeout: 5s
       retries: 60 # First time up requires lots of time to install the server
 
+  staging:
+    build:
+      context: ./staging
+      dockerfile: Dockerfile
+    hostname: staging.example.org
+    container_name: staging
+    volumes:
+      - ./staging/sss-confined-shell:/usr/bin/sss-confined-shell
+    cap_add:
+      # For SSSD to work
+      - SETGID
+      - SETUID
+      - SETPCAP
+      - DAC_READ_SEARCH
+      - DAC_OVERRIDE
+      - SYS_ADMIN
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+
   mcp:
     build:
       context: ./mcp
       dockerfile: Dockerfile
+    hostname: mcp.example.org
     container_name: mcp
     depends_on:
       spire-agent:

@@ -12,4 +12,4 @@ podman exec ipa ipa user-add my-user --first="my-user" --last "my-user"
 Create certificate mapping (note: service principal is not supported)
 podman exec ipa ipa certmaprule-add "SPIFFE" \
     --matchrule='<SAN:uniformResourceIdentifier>.*' \
-    --maprule='(krbprincipalname=mcp@IPA.EXAMPLE.ORG)'
+    --maprule='(krbprincipalname=mcp@EXAMPLE.ORG)'
