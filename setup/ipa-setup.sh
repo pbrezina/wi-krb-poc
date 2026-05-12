@@ -57,3 +57,5 @@ podman exec ipa ipa sudorule-add admin-all \
     --desc="Allow admin to run any command on any host" \
     --hostcat=all --cmdcat=all
 podman exec ipa ipa sudorule-add-user admin-all --users=admin
+
+podman exec ipa dsconf slapd-EXAMPLE-ORG config replace nsslapd-errorlog-level=16392

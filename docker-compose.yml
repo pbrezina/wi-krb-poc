@@ -47,6 +47,8 @@ services:
       - ipa-data:/data
       - ./certs:/certs
       - ./ipa/ipa-server-install-options:/data/ipa-server-install-options
+    cap_add:
+      - DAC_READ_SEARCH
     healthcheck:
       test: ["CMD", "ipactl", "status"]
       interval: 10s

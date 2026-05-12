@@ -6,7 +6,7 @@ FROM quay.io/freeipa/freeipa-server:fedora-rawhide
 RUN cp -a /data-template/. /data/ && \
     mkdir -p /tmp/var/tmp && \
     dnf copr enable -y pbrezina/s4u && \
-    dnf upgrade -y freeipa-server && \
+    dnf upgrade -y 389-ds\* freeipa-server sssd\* && \
     dnf clean all && \
     cp -a /data/. /data-template/
 

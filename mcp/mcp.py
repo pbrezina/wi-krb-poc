@@ -299,6 +299,9 @@ def paramiko_run(hostname, user):
 
         # And we can run authenticated IPA command
         paramiko_exec(ssh, "ipa user-find")
+
+        # Make sure we don't leave any ticket behind to taint next attempts
+        paramiko_exec(ssh, "kdestroy -A")
     finally:
         ssh.close()
         print(f"SSH connection closed")
@@ -313,71 +316,72 @@ def podman_wait():
     time.sleep(10)
 
 
+def run_cycle():
+    try:
+        svid = fetch_svid()
+    except Exception as e:
+        print(f"Error fetching SPIFFE identity: {e}")
+        return
+
+    # Store SVID to disk for kinit PKINIT
+    cert_file, key_file = store_svid_to_disk(svid)
+
+    try:
+        # Perform PKINIT authentication
+        # Currently not possible with service principal.
+        # try:
+        #     acquire_tgt_with_pkinit('mcp@EXAMPLE.ORG', cert_file, key_file, "MEMORY:ccache")
+        # except Exception as auth_error:
+        #     print(f"PKINIT authentication failed: {auth_error}")
+        acquire_tgt_with_keytab(
+            "mcp/mcp.example.org@EXAMPLE.ORG",
+            "/certs/tmp/mcp.keytab",
+            "MEMORY:ccache",
+        )
+    except Exception as e:
+        print(f"Could not get TGT: {e}")
+        return
+
+    try:
+        # acquire_s4u_ticket(
+        #     "mcp/mcp.example.org@EXAMPLE.ORG",
+        #     "admin@EXAMPLE.ORG",
+        #     "host/staging.example.org@EXAMPLE.ORG",
+        #     "MEMORY:s4u2proxy",
+        # )
+        cert = ipa_build_attestation_cert(
+            svc_type="mcp",
+            svc_hostname="mcp.example.org",
+            svc_pubkey_path="/certs/mcp.crt",
+            svc_keytab_path="/certs/tmp/mcp.keytab",
+            realm="EXAMPLE.ORG",
+            user="admin",
+        )
+
+        ipa_acquire_s4u2self_ticket(
+            "mcp/mcp.example.org@EXAMPLE.ORG", cert, "MEMORY:s4u2proxy"
+        )
+
+    except Exception as e:
+        print(f"Error getting S4U tickets: {e}")
+        return
+
+    try:
+        paramiko_run(
+            "staging.example.org",
+            "BOT-eyJuIjoiYWRtaW4iLCJyIjoiMTIzNDU2Nzg5IiwiYSI6ImNsYXVkZSIsIm0iOiJvcHVzIiwidCI6InJoZWwtbWNwIn0=@EXAMPLE.ORG",
+            # "BOT-eyJuIjoiYWRtaW4iLCJyIjoiMTIzNDU2Nzg5IiwiYSI6ImNsYXVkZSIsIm0iOiJvcHVzIiwidCI6InJoZWwtbWNwIn0=",
+            # "admin",
+        )
+    except Exception as e:
+        print(f"SSH Connection Failed: {e}")
+        return
+
+
 def main():
+    run_cycle()
+
     while True:
-        try:
-            svid = fetch_svid()
-        except Exception as e:
-            print(f"Error fetching SPIFFE identity: {e}")
-            podman_wait()
-            continue
-
-        # Store SVID to disk for kinit PKINIT
-        cert_file, key_file = store_svid_to_disk(svid)
-
-        try:
-            # Perform PKINIT authentication
-            # Currently not possible with service principal.
-            # try:
-            #     acquire_tgt_with_pkinit('mcp@EXAMPLE.ORG', cert_file, key_file, "MEMORY:ccache")
-            # except Exception as auth_error:
-            #     print(f"PKINIT authentication failed: {auth_error}")
-            acquire_tgt_with_keytab(
-                "mcp/mcp.example.org@EXAMPLE.ORG",
-                "/certs/tmp/mcp.keytab",
-                "MEMORY:ccache",
-            )
-        except Exception as e:
-            print(f"Could not get TGT: {e}")
-            podman_wait()
-            continue
-
-        try:
-            # acquire_s4u_ticket(
-            #     "mcp/mcp.example.org@EXAMPLE.ORG",
-            #     "admin@EXAMPLE.ORG",
-            #     "host/staging.example.org@EXAMPLE.ORG",
-            #     "MEMORY:s4u2proxy",
-            # )
-            cert = ipa_build_attestation_cert(
-                svc_type="mcp",
-                svc_hostname="mcp.example.org",
-                svc_pubkey_path="/certs/mcp.crt",
-                svc_keytab_path="/certs/tmp/mcp.keytab",
-                realm="EXAMPLE.ORG",
-                user="admin",
-            )
-
-            ipa_acquire_s4u2self_ticket(
-                "mcp/mcp.example.org@EXAMPLE.ORG", cert, "MEMORY:s4u2proxy"
-            )
-
-        except Exception as e:
-            print(f"Error getting S4U tickets: {e}")
-            raise
-            podman_wait()
-            continue
-
-        try:
-            paramiko_run(
-                "staging.example.org",
-                "BOT-eyJuIjoiYWRtaW4iLCJyIjoiMTIzNDU2Nzg5IiwiYSI6ImNsYXVkZSIsIm0iOiJvcHVzIiwidCI6InJoZWwtbWNwIn0=@EXAMPLE.ORG",
-            )
-        except Exception as e:
-            print(f"SSH Connection Failed: {e}")
-            podman_wait()
-            continue
-
         podman_wait()
 
 
