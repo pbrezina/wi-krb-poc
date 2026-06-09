@@ -1,4 +1,6 @@
-# PoC SVID -> Kerberos TGT -> S4U tickets -> SSH
+# Kerberos based workload identity PoC
+
+## Kerberos TGT -> S4U tickets -> SSH
 
 The PoC is functional, however there are several workarounds applied. Multiple
 components must be patched in order to make the flow production ready.
